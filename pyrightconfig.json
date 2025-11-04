@@ -1,0 +1,9 @@
+{
+  "typeCheckingMode": "basic",
+  "venvPath": "/home/patil/Desktop/IntelliScaleSim/backend",
+  "venv": ".venv",
+  "exclude": ["**/__pycache__"],
+  "include": [
+    "backend"
+  ]
+}

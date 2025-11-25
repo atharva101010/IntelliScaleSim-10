@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import routes_auth, routes_containers, routes_loadtest, routes_autoscale, routes_dashboard
 from app.models.base import Base
 from app.database.session import engine
+from app.database.init_db import ensure_columns
 
 app = FastAPI(title="IntelliScaleSim API", version="0.1.0")
 
@@ -37,3 +38,4 @@ app.include_router(routes_dashboard.router)
 def on_startup():
     # Create tables for scaffold/demo purposes. In real app, use Alembic.
     Base.metadata.create_all(bind=engine)
+    ensure_columns(engine)

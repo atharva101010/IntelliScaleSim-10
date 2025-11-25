@@ -1,4 +1,15 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
+// Determine API base URL robustly for both Docker and local dev.
+// Prefer VITE_API_URL when provided; otherwise infer from the current hostname (port 8000).
+const envBase = (import.meta as any).env?.VITE_API_URL as string | undefined;
+const isDev = typeof window !== 'undefined' && window.location.port === '5173'
+// In dev, prefer Vite proxy to remove CORS entirely
+let API_BASE = isDev ? '/api' : undefined as unknown as string;
+if (!API_BASE) {
+  const inferred = (typeof window !== 'undefined')
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : 'http://localhost:8000';
+  API_BASE = (envBase && envBase.replace(/\/$/, "")) || inferred;
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

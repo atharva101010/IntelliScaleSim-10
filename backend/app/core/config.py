@@ -7,9 +7,8 @@ class Settings(BaseSettings):
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000
 
-    DATABASE_URL: str = (
-        "postgresql+psycopg2://postgres:postgres@db:5432/intelliscalesim"
-    )
+    # Default now targets local Postgres (non-Docker). Override via env when containerized.
+    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/intelliscalesim"
 
     CORS_ORIGINS: str = "*"
 
@@ -36,7 +35,8 @@ class Settings(BaseSettings):
     MAIL_FROM: str | None = None
 
     class Config:
-        env_file = "/app/.env"
+        # Allow local .env at repository root or backend/.env
+        env_file = ".env"
         case_sensitive = True
 
 

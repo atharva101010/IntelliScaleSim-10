@@ -24,14 +24,96 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     try {
       const data = await res.json();
       message = (data as any)?.detail || message;
-    } catch {}
+    } catch { }
+
+    // Provide clearer error messages for authentication issues
+    if (res.status === 401) {
+      throw new Error('Please log in to continue. Your session may have expired.');
+    }
+
     throw new Error(message);
   }
   if (res.status === 204) return undefined as unknown as T;
   return res.json() as Promise<T>;
 }
 
+// Helper to get auth headers with token
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem('token');
+  return token ? {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  } : {
+    'Content-Type': 'application/json'
+  };
+}
+
 export type LoginResponse = { access_token: string; token_type: string };
+
+export interface DeployContainerRequest {
+  name: string;
+  deployment_type: 'dockerhub' | 'github' | 'simulated';
+
+  // For Docker Hub
+  image?: string;
+  docker_username?: string;
+  docker_password?: string;
+
+  // For GitHub
+  source_url?: string;
+  git_username?: string;
+  git_token?: string;
+  github_branch?: string;
+  dockerfile_path?: string;
+
+  // Common
+  port?: number;
+  cpu_limit?: number;
+  memory_limit?: number;
+  environment_vars?: Record<string, string>;
+}
+
+export interface Container {
+  id: number;
+  user_id: number;
+  name: string;
+  image: string;
+  status: 'pending' | 'running' | 'stopped' | 'error';
+  port: number | null;
+  cpu_limit: number;
+  memory_limit: number;
+  environment_vars: Record<string, string>;
+
+  // Deployment fields
+  deployment_type?: string;
+  source_url?: string;
+  build_status?: string;
+  container_id?: string;
+  localhost_url?: string;
+  public_url?: string;
+
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  stopped_at: string | null;
+}
+
+export interface ContainerListResponse {
+  containers: Container[];
+  total: number;
+}
+
+export interface ContainerActionResponse {
+  ok: boolean;
+  message: string;
+  container?: Container;
+}
+
+export interface ContainerLogsResponse {
+  logs: string[];
+  container_name: string;
+  status: string;
+}
 
 export const api = {
   post: request,
@@ -40,7 +122,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  register: (name: string, email: string, password: string, role: 'student'|'teacher'|'admin') =>
+  register: (name: string, email: string, password: string, role: 'student' | 'teacher' | 'admin') =>
     request(`/auth/register`, {
       method: 'POST',
       body: JSON.stringify({ name, email, password, role }),
@@ -64,5 +146,90 @@ export const api = {
     request(`/auth/password/reset`, {
       method: 'POST',
       body: JSON.stringify({ token, new_password }),
+    }),
+
+  // Container management methods
+  deployContainer: (data: DeployContainerRequest) =>
+    request<Container>(`/containers/deploy`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    }),
+  listContainers: (status?: string) =>
+    request<ContainerListResponse>(
+      `/containers${status ? `?status=${status}` : ''}`,
+      {
+        method: 'GET',
+        headers: authHeaders(),
+      }
+    ),
+  getContainer: (id: number) =>
+    request<Container>(`/containers/${id}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+  startContainer: (id: number) =>
+    request<ContainerActionResponse>(`/containers/${id}/start`, {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+  stopContainer: (id: number) =>
+    request<ContainerActionResponse>(`/containers/${id}/stop`, {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+  deleteContainer: (id: number) =>
+    request<ContainerActionResponse>(`/containers/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }),
+  getContainerLogs: (id: number) =>
+    request<ContainerLogsResponse>(`/containers/${id}/logs`, {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+};
+
+// Monitoring interfaces
+export interface ContainerStats {
+  id: number;
+  name: string;
+  container_id: string | null;
+  status: string;
+  cpu_percent: number;
+  memory_usage_mb: number;
+  memory_limit_mb: number;
+  memory_percent: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  network_rx_mb: number;
+  network_tx_mb: number;
+  timestamp: string;
+}
+
+export interface MonitoringOverview {
+  total_containers: number;
+  running_containers: number;
+  stopped_containers: number;
+  total_cpu_percent: number;
+  total_memory_usage_mb: number;
+  containers_stats: ContainerStats[];
+}
+
+export const monitoring = {
+  getAllStats: () =>
+    request<ContainerStats[]>('/monitoring/containers', {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+  getContainerStats: (id: number) =>
+    request<ContainerStats>(`/monitoring/containers/${id}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+  getOverview: () =>
+    request<MonitoringOverview>('/monitoring/overview', {
+      method: 'GET',
+      headers: authHeaders(),
     }),
 };

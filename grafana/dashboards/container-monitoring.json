@@ -1,0 +1,190 @@
+{
+    "dashboard": {
+        "title": "IntelliScaleSim Container Monitoring",
+        "tags": [
+            "containers",
+            "docker",
+            "monitoring"
+        ],
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "version": 0,
+        "refresh": "5s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Total Running Containers",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "count(container_cpu_usage_percent)",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            {
+                "id": 2,
+                "title": "Average CPU Usage",
+                "type": "gauge",
+                "targets": [
+                    {
+                        "expr": "avg(container_cpu_usage_percent)",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 6,
+                    "y": 0
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 50,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 80,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 3,
+                "title": "Total Memory Usage",
+                "type": "gauge",
+                "targets": [
+                    {
+                        "expr": "sum(container_memory_usage_bytes) / 1024 / 1024",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 12,
+                    "y": 0
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decmbytes"
+                    }
+                }
+            },
+            {
+                "id": 4,
+                "title": "CPU Usage by Container",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "container_cpu_usage_percent",
+                        "legendFormat": "{{container_name}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 4
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent"
+                    }
+                }
+            },
+            {
+                "id": 5,
+                "title": "Memory Usage by Container",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "container_memory_usage_bytes / 1024 / 1024",
+                        "legendFormat": "{{container_name}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 4
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decmbytes"
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Network RX by Container",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "container_network_rx_bytes / 1024 / 1024",
+                        "legendFormat": "{{container_name}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 12
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decmbytes"
+                    }
+                }
+            },
+            {
+                "id": 7,
+                "title": "Network TX by Container",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "container_network_tx_bytes / 1024 / 1024",
+                        "legendFormat": "{{container_name}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 12
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decmbytes"
+                    }
+                }
+            }
+        ],
+        "time": {
+            "from": "now-5m",
+            "to": "now"
+        }
+    }
+}

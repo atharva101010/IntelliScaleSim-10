@@ -40,4 +40,16 @@ def ensure_columns(engine: Engine):
 			conn.execute(text(stmt))
 		if alter_statements:
 			conn.commit()
+		
+		# Make containers.image column nullable for GitHub deployments
+		container_cols = conn.execute(text("""
+			SELECT column_name, is_nullable FROM information_schema.columns
+			WHERE table_name='containers' AND column_name='image'
+		""")).fetchone()
+		
+		if container_cols and container_cols[1] == 'NO':
+			# Column exists but is NOT NULL, make it nullable
+			conn.execute(text("ALTER TABLE containers ALTER COLUMN image DROP NOT NULL;"))
+			conn.commit()
+			print("✅ Made containers.image column nullable for GitHub deployments")
 

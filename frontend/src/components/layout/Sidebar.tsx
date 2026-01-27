@@ -30,24 +30,31 @@ export default function Sidebar() {
         {role === 'student' && (
           <>
             <Item to="/student" label="Overview" />
-            <Item to="/student/courses" label="My Courses" />
-            <Item to="/student/assignments" label="Assignments" />
-            <Item to="/student/simulations" label="Simulations" />
+            <Item to="/student/deployments" label="Deployments" />
+            <Item to="/student/monitoring" label="Monitoring" />
+            <Item to="/student/autoscaling" label="Auto-Scaling" />
+            <Item to="/student/loadtest" label="Load Testing" />
+            <Item to="/student/guides" label="Deployment Guides" />
             <Item to="/student/profile" label="Profile" />
           </>
         )}
         {role === 'teacher' && (
           <>
             <Item to="/teacher" label="Overview" />
+            <Item to="/teacher/deployments" label="Deployments" />
+            <Item to="/teacher/monitoring" label="Monitoring" />
+            <Item to="/teacher/guides" label="Deployment Guides" />
             <Item to="/teacher/classes" label="Classes" />
-            <Item to="/teacher/assignments" label="Assignments" />
-            <Item to="/teacher/simulations" label="Labs & Sims" />
             <Item to="/teacher/profile" label="Profile" />
           </>
         )}
         {role === 'admin' && (
           <>
             <Item to="/admin" label="Overview" />
+            <Item to="/admin/deployments" label="Deployments" />
+            <Item to="/admin/monitoring" label="Monitoring" />
+            <Item to="/admin/loadtest" label="Load Testing" />
+            <Item to="/admin/guides" label="Deployment Guides" />
             <Item to="/admin/users" label="Users" />
             <Item to="/admin/systems" label="Systems" />
             <Item to="/admin/settings" label="Settings" />

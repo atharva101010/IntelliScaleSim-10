@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliScaleSim Test App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        
+        p {
+            color: #555;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin: 20px 0;
+        }
+        
+        .success {
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin-top: 30px;
+        }
+        
+        .info {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info strong {
+            color: #667eea;
+        }
+        
+        .emoji {
+            font-size: 3rem;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🚀</div>
+        <h1>IntelliScaleSim</h1>
+        <div class="badge">Test Application</div>
+        
+        <p>This is a <strong>custom Docker container</strong> deployed from a local image!</p>
+        
+        <div class="success">✅ Deployment Successful!</div>
+        
+        <div class="info">
+            <p><strong>Container Info:</strong></p>
+            <p>Image: <code>intelliscale-test:v1</code></p>
+            <p>Built locally and deployed via IntelliScaleSim platform</p>
+        </div>
+        
+        <p style="margin-top: 40px; color: #999; font-size: 0.9rem;">
+            Powered by Docker • Managed by IntelliScaleSim
+        </p>
+    </div>
+</body>
+</html>

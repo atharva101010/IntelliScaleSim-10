@@ -1,9 +1,285 @@
-# Placeholder routes for load testing
-from fastapi import APIRouter
+"""
+API routes for Load Testing feature
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+from typing import List, Optional
+import asyncio
+import json
+from datetime import datetime
+
+from app.database.session import get_db
+from app.core.security import get_current_user
+from app.models.user import User
+from app.models.container import Container
+from app.models.loadtest import LoadTest, LoadTestMetric, LoadTestStatus
+from app.schemas.loadtest import (
+    LoadTestCreate,
+    LoadTestResponse,
+    LoadTestStartResponse,
+    LoadTestHistoryResponse,
+    LoadTestListItem,
+    LoadTestCancelResponse,
+    LoadTestStreamMetric
+)
+from app.services.loadtest_service import LoadTestService
+from app.services.docker_service import DockerService
 
 router = APIRouter(prefix="/loadtest", tags=["loadtest"])
 
 
-@router.post("/run")
-def run_loadtest_placeholder():
-    return {"detail": "Not implemented"}
+def get_load_test_service(db: Session = Depends(get_db)) -> LoadTestService:
+    """Dependency to get load test service - creates new instance per request"""
+    docker_service = DockerService()
+    return LoadTestService(db, docker_service)
+
+
+
+@router.post("/start", response_model=LoadTestStartResponse, status_code=status.HTTP_201_CREATED)
+async def start_load_test(
+    request: LoadTestCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    service: LoadTestService = Depends(get_load_test_service)
+):
+    """
+    Start a new load test
+    
+    Validates container ownership, ensures container is running,
+    and queues the test for execution in the background
+    """
+    try:
+        # 1. Verify container exists and belongs to user
+        container = db.query(Container).filter(
+            Container.id == request.container_id,
+            Container.user_id == current_user.id
+        ).first()
+        
+        if not container:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Container not found"
+            )
+        
+        # 2. Verify container is running
+        container_status = container.status.value if hasattr(container.status, 'value') else str(container.status)
+        if container_status != "running":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Can only test running containers (current status: {container_status})"
+            )
+        
+        # 3. Determine target URL
+        target_url = request.target_url
+        if not target_url:
+            # Use container's localhost URL
+            if container.localhost_url:
+                target_url = container.localhost_url
+            elif container.port:
+                target_url = f"http://localhost:{container.port}"
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Container has no accessible URL"
+                )
+        
+        # 4. Create load test record
+        load_test = LoadTest(
+            user_id=current_user.id,
+            container_id=container.id,
+            target_url=target_url,
+            total_requests=request.total_requests,
+            concurrency=request.concurrency,
+            duration_seconds=request.duration_seconds,
+            status=LoadTestStatus.PENDING
+        )
+        db.add(load_test)
+        db.commit()
+        db.refresh(load_test)
+        
+        # 5. Start test in background
+        background_tasks.add_task(service.execute_load_test, load_test.id)
+        
+        return LoadTestStartResponse(
+            id=load_test.id,
+            status="pending",
+            message="Load test queued"
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Catch any other exception and return details as JSON
+        import traceback
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error: {type(e).__name__}: {str(e)} | Traceback: {traceback.format_exc()[:500]}"
+        )
+
+
+@router.get("/{test_id}", response_model=LoadTestResponse)
+def get_load_test(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    service: LoadTestService = Depends(get_load_test_service)
+):
+    """Get load test status and results"""
+    # Query test
+    test = db.query(LoadTest).filter(
+        LoadTest.id == test_id,
+        LoadTest.user_id == current_user.id
+    ).first()
+    
+    if not test:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Load test not found"
+        )
+    
+    # Calculate progress
+    progress = service.get_progress(test)
+    
+    # Convert to response
+    response = LoadTestResponse.from_orm(test)
+    response.progress_percent = progress
+    
+    return response
+
+
+@router.get("/{test_id}/metrics/stream")
+async def stream_load_test_metrics(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Stream real-time metrics using Server-Sent Events (SSE)
+    """
+    # Verify test exists and belongs to user
+    test = db.query(LoadTest).filter(
+        LoadTest.id == test_id,
+        LoadTest.user_id == current_user.id
+    ).first()
+    
+    if not test:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Load test not found"
+        )
+    
+    async def event_generator():
+        """Generate SSE events with metrics"""
+        try:
+            while True:
+                # Refresh test status
+                db.refresh(test)
+                
+                # If test is complete, send final event and stop
+                if test.status in [LoadTestStatus.COMPLETED, LoadTestStatus.FAILED, LoadTestStatus.CANCELLED]:
+                    yield f"event: complete\ndata: {json.dumps({'status': test.status.value, 'total_completed': test.requests_completed, 'total_failed': test.requests_failed})}\n\n"
+                    break
+                
+                # Get latest metric
+                latest_metric = db.query(LoadTestMetric).filter(
+                    LoadTestMetric.load_test_id == test_id
+                ).order_by(LoadTestMetric.timestamp.desc()).first()
+                
+                if latest_metric:
+                    # Calculate progress
+                    progress = (test.requests_sent / test.total_requests * 100) if test.total_requests > 0 else 0
+                    
+                    # Create metric data
+                    metric_data = LoadTestStreamMetric(
+                        timestamp=latest_metric.timestamp.isoformat(),
+                        cpu=latest_metric.cpu_percent,
+                        memory=latest_metric.memory_mb,
+                        completed=latest_metric.requests_completed,
+                        failed=latest_metric.requests_failed,
+                        progress=progress,
+                        active=latest_metric.active_requests
+                    )
+                    
+                    # Send SSE event
+                    yield f"event: metric\ndata: {metric_data.json()}\n\n"
+                
+                # Wait before next update
+                await asyncio.sleep(2)
+                
+        except asyncio.CancelledError:
+            # Client disconnected
+            pass
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@router.get("/history", response_model=LoadTestHistoryResponse)
+def get_load_test_history(
+    container_id: Optional[int] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get load test history for user"""
+    # Build query
+    query = db.query(LoadTest).filter(LoadTest.user_id == current_user.id)
+    
+    if container_id:
+        query = query.filter(LoadTest.container_id == container_id)
+    
+    # Get tests
+    tests = query.order_by(LoadTest.created_at.desc()).limit(limit).all()
+    total = query.count()
+    
+    # Convert to list items with container names
+    items = []
+    for test in tests:
+        container = db.query(Container).filter(Container.id == test.container_id).first()
+        item = LoadTestListItem.from_orm(test)
+        item.container_name = container.name if container else None
+        items.append(item)
+    
+    return LoadTestHistoryResponse(tests=items, total=total)
+
+
+@router.delete("/{test_id}", response_model=LoadTestCancelResponse)
+async def cancel_load_test(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    service: LoadTestService = Depends(get_load_test_service)
+):
+    """Cancel a running load test"""
+    # Verify test exists and belongs to user
+    test = db.query(LoadTest).filter(
+        LoadTest.id == test_id,
+        LoadTest.user_id == current_user.id
+    ).first()
+    
+    if not test:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Load test not found"
+        )
+    
+    # Only cancel if running
+    if test.status != LoadTestStatus.RUNNING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot cancel test in {test.status.value} status"
+        )
+    
+    # Cancel the test
+    await service.cancel_load_test(test_id)
+    
+    return LoadTestCancelResponse(message="Load test cancelled")

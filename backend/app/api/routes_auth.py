@@ -34,6 +34,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         email=payload.email.lower(),
         password_hash=get_password_hash(payload.password),
         role=UserRole(payload.role),
+        is_verified=True,  # Auto-verify users (email system not configured)
     )
     db.add(user)
     db.commit()
@@ -66,7 +67,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
-    # Enforce verified-only login
+    # Email verification check (users are auto-verified on registration)
     if not bool(user.is_verified):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email not verified. Please check your inbox for a verification link or resend it from the login page.")
 

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Enum, DateTime, func, UniqueConstraint, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 import enum
 from datetime import datetime
@@ -26,4 +26,7 @@ class User(Base):
 
 	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 	updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+	
+	# Relationships
+	load_tests = relationship("LoadTest", back_populates="user")
 

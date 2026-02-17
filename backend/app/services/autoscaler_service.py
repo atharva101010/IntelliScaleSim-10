@@ -36,7 +36,7 @@ class AutoScalerService:
             
         return replicas
     
-    def get_container_metrics(self, container_id: int) -> Optional[dict]:
+    async def get_container_metrics(self, container_id: int) -> Optional[dict]:
         """Get current CPU and memory metrics for a container"""
         try:
             import random
@@ -47,21 +47,32 @@ class AutoScalerService:
             
             # For simulated containers, generate random realistic metrics
             # In production, this would query real Docker stats
-            if not container.container_id:
-                # Simulated container - generate fake metrics for testing
-                # Vary metrics to trigger auto-scaling
-                base_cpu = random.uniform(3, 15)  # Will occasionally go above 10%
-                base_memory = random.uniform(10, 30)  # Will occasionally go above 20%
-                
-                return {
-                    'cpu_percent': round(base_cpu, 2),
-                    'memory_percent': round(base_memory, 2)
-                }
+            # For real Docker containers
+            if container.container_id:
+                try:
+                    stats = await self.docker_service.get_container_stats_async(container.container_id)
+                    # Convert stats to the format expected by autoscaler
+                    # Docker stats returns memory_usage_mb, we need memory_percent
+                    mem_limit = container.memory_limit or 512
+                    mem_percent = (stats.get('memory_usage_mb', 0) / mem_limit) * 100
+                    
+                    return {
+                        'cpu_percent': stats.get('cpu_percent', 0),
+                        'memory_percent': mem_percent
+                    }
+                except Exception as stats_err:
+                    logger.warning(f"Failed to get real stats for container {container_id}: {stats_err}")
+                    return None
             
-            # For real Docker containers (if they exist in future)
-            # This would call actual Docker stats API
-            logger.warning(f"Container {container_id} has Docker ID but stats not implemented yet")
-            return None
+            # Simulated container - generate fake metrics for testing
+            # Vary metrics to trigger auto-scaling
+            base_cpu = random.uniform(3, 15)  # Will occasionally go above 10%
+            base_memory = random.uniform(10, 30)  # Will occasionally go above 20%
+            
+            return {
+                'cpu_percent': round(base_cpu, 2),
+                'memory_percent': round(base_memory, 2)
+            }
             
         except Exception as e:
             logger.error(f"Error getting metrics for container {container_id}: {e}")
@@ -206,11 +217,11 @@ class AutoScalerService:
             self.db.rollback()
             return False
     
-    def evaluate_policy(self, policy: ScalingPolicy) -> None:
+    async def evaluate_policy(self, policy: ScalingPolicy) -> None:
         """Evaluate a single policy and take action if needed"""
         try:
             # Get current metrics
-            metrics = self.get_container_metrics(policy.container_id)
+            metrics = await self.get_container_metrics(policy.container_id)
             if not metrics:
                 logger.debug(f"No metrics available for container {policy.container_id}")
                 return
@@ -220,8 +231,9 @@ class AutoScalerService:
             # Check if should scale up
             should_scale_up, reason = self.should_scale_up(policy, metrics, current_replicas)
             if should_scale_up:
-                logger.info(f"Scaling up container {policy.container_id} due to {reason}: {metrics[reason]}")
-                self.scale_up(policy, reason, metrics[f"{reason}_percent"])
+                metric_key = f"{reason}_percent"
+                logger.info(f"Scaling up container {policy.container_id} due to {reason}: {metrics[metric_key]}%")
+                self.scale_up(policy, reason, metrics[metric_key])
                 return
             
             # Check if should scale down
@@ -236,14 +248,14 @@ class AutoScalerService:
         except Exception as e:
             logger.error(f"Error evaluating policy {policy.id}: {e}")
     
-    def evaluate_all_policies(self) -> None:
+    async def evaluate_all_policies(self) -> None:
         """Evaluate all enabled policies"""
         try:
             policies = self.db.query(ScalingPolicy).filter(ScalingPolicy.enabled == True).all()
             logger.info(f"Evaluating {len(policies)} active scaling policies")
             
             for policy in policies:
-                self.evaluate_policy(policy)
+                await self.evaluate_policy(policy)
                 
         except Exception as e:
             logger.error(f"Error in evaluate_all_policies: {e}")

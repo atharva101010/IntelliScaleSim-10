@@ -34,6 +34,7 @@ export default function Sidebar() {
             <Item to="/student/monitoring" label="Monitoring" />
             <Item to="/student/autoscaling" label="Auto-Scaling" />
             <Item to="/student/loadtest" label="Load Testing" />
+            <Item to="/student/billing" label="Billing" />
             <Item to="/student/guides" label="Deployment Guides" />
             <Item to="/student/profile" label="Profile" />
           </>
@@ -43,6 +44,7 @@ export default function Sidebar() {
             <Item to="/teacher" label="Overview" />
             <Item to="/teacher/deployments" label="Deployments" />
             <Item to="/teacher/monitoring" label="Monitoring" />
+            <Item to="/teacher/billing" label="Billing" />
             <Item to="/teacher/guides" label="Deployment Guides" />
             <Item to="/teacher/classes" label="Classes" />
             <Item to="/teacher/profile" label="Profile" />
@@ -53,7 +55,9 @@ export default function Sidebar() {
             <Item to="/admin" label="Overview" />
             <Item to="/admin/deployments" label="Deployments" />
             <Item to="/admin/monitoring" label="Monitoring" />
+            <Item to="/admin/autoscaling" label="Auto-Scaling" />
             <Item to="/admin/loadtest" label="Load Testing" />
+            <Item to="/admin/billing" label="Billing" />
             <Item to="/admin/guides" label="Deployment Guides" />
             <Item to="/admin/users" label="Users" />
             <Item to="/admin/systems" label="Systems" />

@@ -28,7 +28,7 @@ class DeployContainerRequest(BaseModel):
     docker_password: Optional[str] = Field(None, description="Docker Hub password (for private images)")
     
     # Common fields
-    port: Optional[int] = Field(None, ge=1024, le=65535, description="Exposed port (auto-detect if None)")
+    port: Optional[int] = Field(None, ge=1, le=65535, description="Exposed port (auto-detect if None)")
     cpu_limit: int = Field(500, ge=100, le=4000, description="CPU limit in millicores (100-4000)")
     memory_limit: int = Field(512, ge=128, le=8192, description="Memory limit in MB (128-8192)")
     environment_vars: Optional[Dict[str, str]] = Field(default_factory=dict, description="Environment variables")

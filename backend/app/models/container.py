@@ -34,6 +34,7 @@ class Container(Base):
     build_status: Mapped[str] = mapped_column(String(20), nullable=True)  # 'pending', 'building', 'success', 'failed'
     build_logs: Mapped[str] = mapped_column(Text, nullable=True)  # Build output
     container_id: Mapped[str] = mapped_column(String(255), nullable=True)  # Real Docker container ID
+    parent_id: Mapped[int] = mapped_column(Integer, ForeignKey("containers.id"), nullable=True)  # For replicas
     localhost_url: Mapped[str] = mapped_column(String(500), nullable=True)  # http://localhost:PORT
     public_url: Mapped[str] = mapped_column(String(500), nullable=True)  # Optional ngrok/public URL
 

@@ -15,3 +15,16 @@ infrastructure/.env.local
 # Editor/OS
 .DS_Store
 .vscode/
+
+# Project Specific
+demo-presentation-app/
+backend/test_*.py
+backend/check_billing_db.py
+backend/force_collect.py
+backend/metrics.txt
+check_billing_db.py
+test_autoscale*.py
+check_test_status.py
+test_loadtest_*.py
+backend/test_calc.py
+backend/test_metrics.py

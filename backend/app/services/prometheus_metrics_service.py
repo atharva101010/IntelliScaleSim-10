@@ -56,18 +56,13 @@ class PrometheusMetricsService:
         
         logger.info("Prometheus metrics service initialized")
     
-    def update_container_metrics(self, container_id: str, container_name: str, user_id: int):
+    async def update_container_metrics(self, container_id: str, container_name: str, user_id: int):
         """
         Update metrics for a specific container.
-        
-        Args:
-            container_id: Docker container ID
-            container_name: Container name
-            user_id: User ID who owns the container
         """
         try:
             # Get stats from the stats service
-            stats = container_stats_service.get_container_stats(container_id)
+            stats = await container_stats_service.get_container_stats(container_id)
             
             if not stats:
                 logger.warning(f"Could not get stats for container {container_name}")

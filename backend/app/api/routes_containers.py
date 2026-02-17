@@ -480,6 +480,18 @@ def delete_container(
             detail="Not authorized to delete this container",
         )
     
+    # Manually delete dependent records to avoid foreign key constraints
+    from app.models.billing_models import ResourceUsage, ResourceQuota, BillingSnapshot
+    from app.models.loadtest import LoadTest
+    from app.models.scaling_policy import ScalingPolicy, ScalingEvent
+
+    db.query(ResourceUsage).filter(ResourceUsage.container_id == container_id).delete()
+    db.query(ResourceQuota).filter(ResourceQuota.container_id == container_id).delete()
+    db.query(BillingSnapshot).filter(BillingSnapshot.container_id == container_id).delete()
+    db.query(LoadTest).filter(LoadTest.container_id == container_id).delete()
+    db.query(ScalingEvent).filter(ScalingEvent.container_id == container_id).delete()
+    db.query(ScalingPolicy).filter(ScalingPolicy.container_id == container_id).delete()
+
     container_name = container.name
     db.delete(container)
     db.commit()

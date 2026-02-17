@@ -3,7 +3,7 @@ Database models for Load Testing feature
 """
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from app.models.base import Base
 
@@ -53,7 +53,7 @@ class LoadTest(Base):
     peak_memory_mb = Column(Float, nullable=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     
@@ -74,7 +74,7 @@ class LoadTestMetric(Base):
     load_test_id = Column(Integer, ForeignKey("load_tests.id"), nullable=False, index=True)
     
     # Timestamp of this metric snapshot
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     
     # Container resource metrics
     cpu_percent = Column(Float, nullable=False)

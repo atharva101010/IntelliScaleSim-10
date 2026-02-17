@@ -8,6 +8,7 @@ from typing import Dict, Optional, List
 from datetime import datetime, timezone
 import subprocess
 import json
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +20,9 @@ class ContainerStatsService:
         self.use_cli = True  # Use CLI mode for Windows compatibility
         logger.info("Container stats service initialized (CLI mode)")
     
-    def get_container_stats(self, container_id: str) -> Optional[Dict]:
+    async def get_container_stats(self, container_id: str) -> Optional[Dict]:
         """
         Get real-time stats for a specific container using docker CLI.
-        
-        Args:
-            container_id: Docker container ID
-            
-        Returns:
-            Dictionary with CPU, memory, and network stats or None if error
         """
         try:
             # Use docker stats command with JSON format
@@ -37,7 +32,10 @@ class ContainerStatsService:
                 '{"cpu":"{{.CPUPerc}}","mem":"{{.MemUsage}}","net":"{{.NetIO}}"}'
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            # Run in a thread to avoid blocking the event loop
+            result = await asyncio.to_thread(
+                subprocess.run, cmd, capture_output=True, text=True, timeout=5
+            )
             
             if result.returncode != 0:
                 logger.warning(f"Docker stats command failed for {container_id}: {result.stderr}")

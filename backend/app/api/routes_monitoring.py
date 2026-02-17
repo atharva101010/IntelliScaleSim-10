@@ -53,7 +53,7 @@ class MonitoringOverviewResponse(BaseModel):
 
 
 @router.get("/containers", response_model=List[ContainerStatsResponse])
-def get_all_containers_stats(
+async def get_all_containers_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -71,7 +71,7 @@ def get_all_containers_stats(
         for container in containers:
             # Only get stats for running containers
             if container.status.value == 'running' and container.container_id:
-                docker_stats = container_stats_service.get_container_stats(container.container_id)
+                docker_stats = await container_stats_service.get_container_stats(container.container_id)
                 
                 if docker_stats:
                     stats_list.append(ContainerStatsResponse(
@@ -115,7 +115,7 @@ def get_all_containers_stats(
 
 
 @router.get("/containers/{container_id}", response_model=ContainerStatsResponse)
-def get_container_stats(
+async def get_container_stats(
     container_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -151,7 +151,7 @@ def get_container_stats(
                 timestamp=""
             )
         
-        docker_stats = container_stats_service.get_container_stats(container.container_id)
+        docker_stats = await container_stats_service.get_container_stats(container.container_id)
         
         if not docker_stats:
             raise HTTPException(status_code=500, detail="Failed to get container stats from Docker")
@@ -180,7 +180,7 @@ def get_container_stats(
 
 
 @router.get("/overview", response_model=MonitoringOverviewResponse)
-def get_monitoring_overview(
+async def get_monitoring_overview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -210,7 +210,7 @@ def get_monitoring_overview(
         for container in containers:
             if container.status.value == 'running' and container.container_id:
                 logger.info(f"Getting stats for container {container.id} ({container.name}) with Docker ID {container.container_id[:12]}")
-                docker_stats = container_stats_service.get_container_stats(container.container_id)
+                docker_stats = await container_stats_service.get_container_stats(container.container_id)
                 
                 if docker_stats:
                     logger.info(f"Got stats for {container.name}: CPU={docker_stats['cpu_percent']}%, Mem={docker_stats['memory_usage_mb']}MB")
@@ -218,7 +218,7 @@ def get_monitoring_overview(
                     total_memory += docker_stats['memory_usage_mb']
                     
                     # Update Prometheus metrics
-                    prometheus_metrics_service.update_container_metrics(
+                    await prometheus_metrics_service.update_container_metrics(
                         container_id=container.container_id,
                         container_name=container.name,
                         user_id=container.user_id

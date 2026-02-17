@@ -17,6 +17,7 @@ import DeploymentGuides from '../pages/DeploymentGuides'
 import Monitoring from '../pages/Monitoring'
 import AutoScaling from '../pages/AutoScaling'
 import LoadTesting from '../pages/LoadTesting'
+import Billing from '../pages/Billing'
 
 const Protected: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuth()
@@ -55,11 +56,13 @@ export default function AppRouter() {
           <Route path="/student/monitoring" element={<Protected><RoleGate role="student"><DashboardLayout><Monitoring /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/student/autoscaling" element={<Protected><RoleGate role="student"><DashboardLayout><AutoScaling /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/student/loadtest" element={<Protected><RoleGate role="student"><DashboardLayout><LoadTesting /></DashboardLayout></RoleGate></Protected>} />
+          <Route path="/student/billing" element={<Protected><RoleGate role="student"><DashboardLayout><Billing /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/teacher" element={<Protected><RoleGate role="teacher"><DashboardLayout><TeacherDashboard /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/teacher/deployments" element={<Protected><RoleGate role="teacher"><DashboardLayout><Deployment /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/teacher/deployments/:id" element={<Protected><RoleGate role="teacher"><DashboardLayout><DeploymentDetails /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/teacher/guides" element={<Protected><RoleGate role="teacher"><DashboardLayout><DeploymentGuides /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/teacher/monitoring" element={<Protected><RoleGate role="teacher"><DashboardLayout><Monitoring /></DashboardLayout></RoleGate></Protected>} />
+          <Route path="/teacher/billing" element={<Protected><RoleGate role="teacher"><DashboardLayout><Billing /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/admin" element={<Protected><RoleGate role="admin"><DashboardLayout><AdminDashboard /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/admin/deployments" element={<Protected><RoleGate role="admin"><DashboardLayout><Deployment /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/admin/deployments/:id" element={<Protected><RoleGate role="admin"><DashboardLayout><DeploymentDetails /></DashboardLayout></RoleGate></Protected>} />
@@ -67,6 +70,7 @@ export default function AppRouter() {
           <Route path="/admin/monitoring" element={<Protected><RoleGate role="admin"><DashboardLayout><Monitoring /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/admin/autoscaling" element={<Protected><RoleGate role="admin"><DashboardLayout><AutoScaling /></DashboardLayout></RoleGate></Protected>} />
           <Route path="/admin/loadtest" element={<Protected><RoleGate role="admin"><DashboardLayout><LoadTesting /></DashboardLayout></RoleGate></Protected>} />
+          <Route path="/admin/billing" element={<Protected><RoleGate role="admin"><DashboardLayout><Billing /></DashboardLayout></RoleGate></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>

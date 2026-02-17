@@ -1,13 +1,13 @@
 // Determine API base URL robustly for both Docker and local dev.
 // Prefer VITE_API_URL when provided; otherwise infer from the current hostname (port 8000).
 const envBase = (import.meta as any).env?.VITE_API_URL as string | undefined;
-const isDev = typeof window !== 'undefined' && window.location.port === '5173'
-// In dev, prefer Vite proxy to remove CORS entirely
-let API_BASE = isDev ? '/api' : undefined as unknown as string;
+const isDev = typeof window !== 'undefined' && (window.location.port === '5173' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+// Use 127.0.0.1 instead of localhost to avoid Windows IPv6 resolution issues (::1 vs 127.0.0.1)
+let API_BASE = isDev ? 'http://127.0.0.1:8000' : undefined as unknown as string;
 if (!API_BASE) {
   const inferred = (typeof window !== 'undefined')
     ? `${window.location.protocol}//${window.location.hostname}:8000`
-    : 'http://localhost:8000';
+    : 'http://127.0.0.1:8000';
   API_BASE = (envBase && envBase.replace(/\/$/, "")) || inferred;
 }
 
@@ -23,7 +23,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     let message = res.statusText;
     try {
       const data = await res.json();
-      message = (data as any)?.detail || message;
+      if (Array.isArray(data.detail)) {
+        message = data.detail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+      } else {
+        message = data.detail || message;
+      }
     } catch { }
 
     // Provide clearer error messages for authentication issues
@@ -233,3 +237,125 @@ export const monitoring = {
       headers: authHeaders(),
     }),
 };
+
+// Billing interfaces
+export interface PricingProvider {
+  provider: 'aws' | 'gcp' | 'azure';
+  cpu_per_hour: number;
+  memory_per_gb_hour: number;
+  storage_per_gb_month: number;
+  storage_ssd_per_gb_month?: number;
+  storage_hdd_per_gb_month?: number;
+}
+
+export interface UsageMetric {
+  timestamp: string;
+  cpu_percent: number;
+  cpu_cores: number;
+  memory_mb: number;
+  memory_gb: number;
+  storage_gb: number;
+}
+
+export interface CostBreakdown {
+  cpu_cost: number;
+  memory_cost: number;
+  storage_cost: number;
+  total_cost: number;
+  provider: string;
+}
+
+export interface RealTimeBillingResponse {
+  container_id: number;
+  time_range: {
+    start: string;
+    end: string;
+    hours: number;
+  };
+  average_usage: {
+    cpu_cores: number;
+    memory_gb: number;
+    storage_gb: number;
+  };
+  costs: CostBreakdown;
+  usage_history: UsageMetric[];
+}
+
+export interface ScenarioSimulationResponse {
+  scenario: {
+    cpu_cores: number;
+    memory_gb: number;
+    storage_gb: number;
+    duration_hours: number;
+  };
+  costs: CostBreakdown;
+  cost_breakdown: {
+    cpu: { usage: string; rate: string; cost: number };
+    memory: { usage: string; rate: string; cost: number };
+    storage: { usage: string; rate: string; cost: number };
+  };
+}
+
+export const billing = {
+  getPricingModels: () =>
+    request<{ pricing_models: PricingProvider[] }>('/billing/pricing-models', {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+  calculateRealTimeBilling: (data: {
+    container_id: number;
+    provider: 'aws' | 'gcp' | 'azure';
+    hours_back: number;
+  }) =>
+    request<{ success: boolean; container: any; billing: RealTimeBillingResponse }>(
+      '/billing/real-time/calculate',
+      {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }
+    ),
+  simulateScenario: (
+    cpu_cores: number,
+    memory_gb: number,
+    storage_gb: number,
+    duration_hours: number,
+    provider: 'aws' | 'gcp' | 'azure'
+  ) =>
+    request<{ success: boolean; simulation: ScenarioSimulationResponse }>(
+      '/billing/scenario/simulate',
+      {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          cpu_cores,
+          memory_gb,
+          storage_gb,
+          duration_hours,
+          provider,
+        }),
+      }
+    ),
+  collectMetrics: (container_id: number) =>
+    request('/billing/collect-metrics', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ container_id }),
+    }),
+  getUsageHistory: (container_id: number, hours_back: number = 24) =>
+    request<{
+      container_id: number;
+      time_range: any;
+      usage_count: number;
+      usage_history: UsageMetric[];
+    }>(`/billing/usage-history/${container_id}?hours_back=${hours_back}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+  getUserContainers: () =>
+    request<{ containers: Container[] }>('/billing/containers', {
+      method: 'GET',
+      headers: authHeaders(),
+    }),
+};
+

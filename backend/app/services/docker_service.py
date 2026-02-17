@@ -300,6 +300,63 @@ class DockerService:
             logger.warning(f"Failed to get container stats: {e}")
             return {"cpu_percent": 0, "memory_usage_mb": 0}
 
+    def get_container_stats(self, container_id: str) -> dict:
+        """
+        Sync version of get_container_stats for non-async services.
+        """
+        try:
+            # Use --no-stream. Capture output and clean it up.
+            result = self._run_command(['stats', container_id, '--no-stream', '--format', '{{json .}}'], capture_output=True)
+            output = result.stdout.strip()
+            
+            if not output:
+                return {"cpu_percent": 0, "memory_mb": 0}
+
+            # Docker stats sometimes includes escape codes or returns multiple lines
+            # (header + data) even with --no-stream on some terminal environments.
+            lines = [l.strip() for l in output.split('\n') if l.strip()]
+            last_line = lines[-1]
+            
+            # Remove potential ANSI escape codes
+            import re
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            clean_line = ansi_escape.sub('', last_line)
+            
+            # Additional cleanup for garbage/repeated keys like "ID"ID" seen in some logs
+            # We try to find the actual start and end of JSON { }
+            start = clean_line.find('{')
+            end = clean_line.rfind('}')
+            if start != -1 and end != -1:
+                clean_line = clean_line[start:end+1]
+            
+            stats_json = json.loads(clean_line)
+            
+            # Extract CPU. Key is 'CPUPerc'
+            cpu_str = stats_json.get('CPUPerc', '0.00%').rstrip('%')
+            cpu_percent = float(cpu_str) if cpu_str else 0.0
+            
+            # Extract memory. Key is 'MemUsage' (Format: "X.XMiB / Y.YGiB")
+            mem_usage_str = stats_json.get('MemUsage', '0MiB / 0MiB').split(' / ')[0]
+            
+            # Parse memory string (MiB, GiB, B)
+            memory_mb = 0.0
+            if 'GiB' in mem_usage_str:
+                memory_mb = float(mem_usage_str.replace('GiB', '')) * 1024.0
+            elif 'MiB' in mem_usage_str:
+                memory_mb = float(mem_usage_str.replace('MiB', ''))
+            elif 'kB' in mem_usage_str:
+                memory_mb = float(mem_usage_str.replace('kB', '')) / 1024.0
+            elif 'B' in mem_usage_str:
+                memory_mb = float(mem_usage_str.replace('B', '')) / (1024.0 * 1024.0)
+                
+            return {
+                "cpu_percent": cpu_percent,
+                "memory_mb": memory_mb
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get sync container stats for {container_id}: {e}")
+            return {"cpu_percent": 0, "memory_mb": 0}
+
 
 
 _docker_service = None

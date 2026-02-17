@@ -285,7 +285,7 @@ export default function DeployModal({ isOpen, onClose, onSuccess }: DeployModalP
 
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Port (optional, 1024-65535)
+                            Port (optional, 1-65535)
                         </label>
                         <input
                             type="number"
@@ -293,7 +293,7 @@ export default function DeployModal({ isOpen, onClose, onSuccess }: DeployModalP
                             onChange={(e) => setFormData({ ...formData, port: e.target.value ? parseInt(e.target.value) : undefined })}
                             className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none transition"
                             placeholder="8080"
-                            min="1024"
+                            min="1"
                             max="65535"
                         />
                     </div>

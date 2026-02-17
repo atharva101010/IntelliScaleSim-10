@@ -4,7 +4,7 @@ Executes load tests with async HTTP requests and metrics collection
 """
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 import httpx
 from sqlalchemy.orm import Session
@@ -37,7 +37,7 @@ class LoadTestService:
         try:
             # Update status to running
             test.status = LoadTestStatus.RUNNING
-            test.started_at = datetime.utcnow()
+            test.started_at = datetime.now(timezone.utc)
             self.db.commit()
             
             # Execute test
@@ -45,13 +45,13 @@ class LoadTestService:
             
             # Mark as completed
             test.status = LoadTestStatus.COMPLETED
-            test.completed_at = datetime.utcnow()
+            test.completed_at = datetime.now(timezone.utc)
             self.db.commit()
             
         except asyncio.CancelledError:
             # Test was cancelled
             test.status = LoadTestStatus.CANCELLED
-            test.completed_at = datetime.utcnow()
+            test.completed_at = datetime.now(timezone.utc)
             self.db.commit()
             raise
             
@@ -59,7 +59,7 @@ class LoadTestService:
             # Test failed
             test.status = LoadTestStatus.FAILED
             test.error_message = str(e)
-            test.completed_at = datetime.utcnow()
+            test.completed_at = datetime.now(timezone.utc)
             self.db.commit()
             raise
     
@@ -185,7 +185,7 @@ class LoadTestService:
                 # Save metric snapshot
                 metric = LoadTestMetric(
                     load_test_id=test.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     cpu_percent=cpu_percent,
                     memory_mb=memory_mb,
                     requests_completed=results["completed"],

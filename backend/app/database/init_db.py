@@ -41,15 +41,22 @@ def ensure_columns(engine: Engine):
 		if alter_statements:
 			conn.commit()
 		
-		# Make containers.image column nullable for GitHub deployments
+		# Column checks for containers table
 		container_cols = conn.execute(text("""
 			SELECT column_name, is_nullable FROM information_schema.columns
-			WHERE table_name='containers' AND column_name='image'
-		""")).fetchone()
+			WHERE table_name='containers'
+		""")).fetchall()
+		existing_container_cols = {c[0] for c in container_cols}
 		
-		if container_cols and container_cols[1] == 'NO':
+		image_col = next((c for c in container_cols if c[0] == 'image'), None)
+		if image_col and image_col[1] == 'NO':
 			# Column exists but is NOT NULL, make it nullable
 			conn.execute(text("ALTER TABLE containers ALTER COLUMN image DROP NOT NULL;"))
 			conn.commit()
 			print("✅ Made containers.image column nullable for GitHub deployments")
+		
+		if 'parent_id' not in existing_container_cols:
+			conn.execute(text("ALTER TABLE containers ADD COLUMN parent_id INTEGER REFERENCES containers(id);"))
+			conn.commit()
+			print("✅ Added parent_id column to containers table")
 

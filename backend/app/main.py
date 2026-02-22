@@ -135,19 +135,40 @@ async def on_startup():
     ensure_columns(engine)
     
     
-    # Initialize billing pricing models
+    # Initialize default demo user and billing models
     try:
+        from app.core.security import get_password_hash
+        from app.models.user import User, UserRole
         from app.services.billing_service import BillingService
         from app.database.session import SessionLocal
+        
         db = SessionLocal()
+        
+        # 1. Seed demo user
+        demo_email = "demo@test.com"
+        demo_user = db.query(User).filter(User.email == demo_email).first()
+        if not demo_user:
+            logger.info(f"👤 Creating default demo user: {demo_email}")
+            new_user = User(
+                name="Demo User",
+                email=demo_email,
+                password_hash=get_password_hash("Password123!"),
+                role=UserRole.admin,
+                is_verified=True
+            )
+            db.add(new_user)
+            db.commit()
+            logger.info("✅ Default demo user created successfully")
+            
+        # 2. Seed billing pricing models
         billing_service = BillingService(db)
         billing_service.initialize_pricing_models()
-        db.close()
         logger.info("💰 Billing pricing models initialized")
+        
+        db.close()
     except Exception as e:
-        logger.error(f"⚠️ Error initializing billing pricing models: {e}")
-        logger.info("Billing feature will still work, but you may need to manually initialize pricing data")
-    
+        logger.error(f"⚠️ Error during database initialization: {e}")
+
     logger.info("========================================")
     logger.info("📊 Starting background tasks...")
     logger.info("========================================")
